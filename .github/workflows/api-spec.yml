@@ -17,7 +17,6 @@ jobs:
   api-spec:
     name: Postman collection vs running server
     runs-on: ubuntu-latest
-    continue-on-error: true
 
     steps:
       - uses: actions/checkout@v4
@@ -48,5 +47,17 @@ jobs:
           done
           echo "server failed to start within 120s"; exit 1
 
+      # Informational: failures here are expected while the article, comment and profile
+      # endpoints are stubs, so the step reports but does not fail the job.
       - name: Run API spec tests
-        run: APIURL=http://localhost:8080/api ./spec-api/run-api-tests.sh
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          APIURL=http://localhost:8080/api ./spec-api/run-api-tests.sh 2>&1 | tee newman.log || true
+          {
+            echo '### RealWorld API spec (informational)'
+            echo ''
+            echo '```'
+            grep -E "^│ *(iterations|requests|test-scripts|assertions)" newman.log || tail -20 newman.log
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -10,8 +10,10 @@ buildscript {
         hikaricp_version = "5.1.0"
         h2_version = "2.3.232"
         exposed_version = "0.44.1"
-        jackson_version = "2.18.4"
+        jackson_version = "2.18.8"
         netty_version = "4.1.136.Final"
+        commons_io_version = "2.20.0"
+        guava_version = "33.4.8-jre"
         junit_version = "4.13.2"
         unirest_version = "1.4.9"
     }
@@ -37,13 +39,22 @@ repositories {
     mavenCentral()
 }
 
-// Ktor 1.2.3 pins Netty 4.1.37 (2019). Nothing in this project uses APIs that changed
-// inside the 4.1 line, so track the current patch release instead of the pinned one.
+// Ktor 1.2.3 and its jwks-rsa dependency pin 2019-era transitive libraries. These upgrades
+// are all within a compatible major line and clear every advisory the CI scan reports.
 configurations.all {
     resolutionStrategy.eachDependency { details ->
-        if (details.requested.group == 'io.netty' && details.requested.name.startsWith('netty-')) {
+        def requested = details.requested
+        if (requested.group == 'io.netty' && requested.name.startsWith('netty-')) {
             details.useVersion netty_version
-            details.because 'CVEs fixed after 4.1.37; API-compatible within 4.1.x'
+            details.because 'advisories fixed after 4.1.37; API-compatible within 4.1.x'
+        }
+        if (requested.group == 'commons-io' && requested.name == 'commons-io') {
+            details.useVersion commons_io_version
+            details.because 'GHSA-78wr-2p64-hpwj (high), fixed in 2.14.0'
+        }
+        if (requested.group == 'com.google.guava' && requested.name == 'guava') {
+            details.useVersion guava_version
+            details.because 'GHSA-7g45-4rm6-3mm3 / GHSA-5mg8-w23w-74h3, fixed in 32.0.0'
         }
     }
 }

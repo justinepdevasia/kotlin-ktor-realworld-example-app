@@ -37,12 +37,15 @@ jobs:
       - name: Assemble runtime classpath
         run: ./gradlew installDist
 
+      # Gates on high and above: the current dependency set is clean at that level, so a new
+      # advisory (or a careless bump) should break the build rather than be noted and ignored.
       - name: Scan with grype
         id: scan
+        continue-on-error: true   # let the summary step run, then fail explicitly below
         uses: anchore/scan-action@v6
         with:
           path: build/install/api/lib
-          fail-build: false
+          fail-build: true
           severity-cutoff: high
           output-format: sarif
 
@@ -55,15 +58,11 @@ jobs:
       - name: Summarize findings
         if: always()
         run: |
-          python3 - "${{ steps.scan.outputs.sarif }}" <<'PY' >> "$GITHUB_STEP_SUMMARY"
-          import collections, json, sys
+          python3 - "${{ steps.scan.outputs.sarif }}" <<'PY' | tee -a "$GITHUB_STEP_SUMMARY"
+          import json, sys
           runs = json.load(open(sys.argv[1]))["runs"]
           rules = {r["id"]: r for run in runs for r in run["tool"]["driver"].get("rules", [])}
           results = [r for run in runs for r in run.get("results", [])]
-          by_severity = collections.Counter(
-              rules.get(r["ruleId"], {}).get("properties", {}).get("security-severity", "unknown")
-              for r in results
-          )
           print("### grype — runtime classpath\n")
           print(f"**{len(results)} finding(s)** at severity high or above\n")
           for r in results:
@@ -72,3 +71,9 @@ jobs:
           if not results:
               print("No findings at or above the high cutoff.")
           PY
+
+      - name: Fail when the scan found something
+        if: steps.scan.outcome == 'failure'
+        run: |
+          echo "grype reported findings at or above the high cutoff — see the job summary."
+          exit 1

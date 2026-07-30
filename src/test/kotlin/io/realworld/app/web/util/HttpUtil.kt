@@ -41,6 +41,12 @@ class HttpUtil(port: Int) {
     fun getRaw(path: String, params: Map<String, Any>? = null) =
         Unirest.get(origin + path).headers(headers).queryString(params).asString()
 
+    fun postRaw(path: String, body: Any? = null) =
+        Unirest.post(origin + path).headers(headers).let { if (body == null) it else it.body(body) }
+            .asString()
+
+    fun deleteRaw(path: String) = Unirest.delete(origin + path).headers(headers).asString()
+
     inline fun <reified T> put(path: String, body: Any) =
         Unirest.put(origin + path).headers(headers).body(body).asObject(T::class.java)
 
@@ -56,6 +62,10 @@ class HttpUtil(port: Int) {
         headers["Authorization"] = "Token ${response.body.user?.token}"
     }
 
+    fun clearTokenHeader() {
+        headers.remove("Authorization")
+    }
+
     fun registerUser(email: String, password: String, username: String): UserDTO {
         val userDTO = UserDTO(User(email = email, password = password, username = username))
         val response = post<UserDTO>("/api/users", userDTO)
@@ -69,12 +79,17 @@ class HttpUtil(port: Int) {
         return user
     }
 
-    fun createArticle(article: Article): HttpResponse<ArticleDTO> {
-        createUser()
-        return post<ArticleDTO>("/api/articles", ArticleDTO(article))
+    /** Registers the user if needed, then authenticates as them for subsequent calls. */
+    fun registerAndLogin(email: String, username: String, password: String = "password") {
+        registerUser(email, password, username)
+        loginAndSetTokenHeader(email, password)
     }
 
+    fun createArticle(article: Article): HttpResponse<ArticleDTO> =
+        post("/api/articles", ArticleDTO(article))
+
     fun createArticle(): HttpResponse<ArticleDTO> {
+        createUser()
         return createArticle(
             Article(
                 title = "How to train your dragon",
@@ -84,4 +99,9 @@ class HttpUtil(port: Int) {
             )
         )
     }
+
+    fun favoriteArticle(slug: String): HttpResponse<ArticleDTO> = post("/api/articles/$slug/favorite")
+
+    fun unfavoriteArticle(slug: String): HttpResponse<ArticleDTO> =
+        deleteWithResponseBody("/api/articles/$slug/favorite")
 }

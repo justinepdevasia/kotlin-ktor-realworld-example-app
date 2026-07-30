@@ -53,9 +53,9 @@ Tests:
 
 # Getting started
 
-You need just JVM installed.
+You need a JDK 17 or newer installed. The build targets JVM 17 bytecode and is verified in CI on JDK 17 and 21.
 
-The server is configured to start on [8080](http://localhost:7000).
+The server starts on [8080](http://localhost:8080) and all routes are served under `/api`, per the RealWorld spec.
 
 Build:
 > ./gradlew clean build
@@ -63,11 +63,37 @@ Build:
 Start the server:
 > ./gradlew run
 
+Run the tests:
+> ./gradlew test
+
 In the project have the [spec-api](https://github.com/Rudge/kotlin-ktor-realworld-example-app/tree/master/spec-api) with the README and collections to execute backend tests specs [realworld](https://github.com/gothinkster/realworld).
 
 Execute tests and start the server:
 
-> ./gradlew run & APIURL=http://localhost:8080 ./spec-api/run-api-tests.sh
+> ./gradlew run & APIURL=http://localhost:8080/api ./spec-api/run-api-tests.sh
+
+## Popular articles feed
+
+`GET /api/articles/feed/popular` returns articles ordered by favorite count, most favorited first.
+
+Requires authentication (`Authorization: Token <jwt>`).
+
+| Query param | Default | Rules |
+|---|---|---|
+| `limit` | 20 | positive integer, max 100 |
+| `offset` | 0 | zero or a positive integer |
+
+```
+curl -H "Authorization: Token $TOKEN" \
+  "http://localhost:8080/api/articles/feed/popular?limit=20&offset=0"
+
+{"articles":[{"slug":"...","title":"...","favoritesCount":2,"author":{...}}],"articlesCount":3}
+```
+
+`articlesCount` is the total number of articles available, not the size of the page.
+
+Errors follow the RealWorld shape `{"errors":{"body":["..."]}}`: `401` without a valid token,
+`422` for a malformed `limit`/`offset`.
 
 # Help
 

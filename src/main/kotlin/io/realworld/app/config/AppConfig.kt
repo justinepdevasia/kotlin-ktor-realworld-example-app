@@ -7,6 +7,8 @@ import io.ktor.auth.jwt.jwt
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
+import com.fasterxml.jackson.databind.SerializationFeature
+import com.fasterxml.jackson.databind.util.StdDateFormat
 import io.ktor.jackson.jackson
 import io.ktor.routing.Routing
 import io.ktor.routing.route
@@ -36,7 +38,7 @@ const val SERVER_PORT = 8080
 @KtorExperimentalAPI
 @EngineAPI
 fun setup(isCio: Boolean = true): BaseApplicationEngine {
-    DbConfig.setup("jdbc:h2:mem:DATABASE_TO_UPPER=false;", "sa", "")
+    DbConfig.setup("jdbc:h2:mem:realworld;DB_CLOSE_DELAY=-1", "sa", "")
     return server(if (isCio) CIO else Netty)
 }
 
@@ -65,6 +67,10 @@ fun Application.mainModule() {
     install(CallLogging)
     install(ContentNegotiation) {
         jackson {
+            // RealWorld clients (and the bundled Postman collection) expect ISO-8601,
+            // not epoch millis.
+            disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS)
+            setDateFormat(StdDateFormat().withColonInTimeZone(true))
         }
     }
     install(Authentication) {

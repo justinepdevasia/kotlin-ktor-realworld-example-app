@@ -8,9 +8,10 @@ buildscript {
         ktor_version = "1.2.3"
         kodein_version = "6.1.0"
         hikaricp_version = "5.1.0"
-        h2_version = "1.4.200" // Exposed 0.17.x uses H2 1.x internals; 2.x breaks at runtime
-        exposed_version = "0.17.14"
-        jackson_version = "2.15.4"
+        h2_version = "2.3.232"
+        exposed_version = "0.44.1"
+        jackson_version = "2.18.4"
+        netty_version = "4.1.136.Final"
         junit_version = "4.13.2"
         unirest_version = "1.4.9"
     }
@@ -36,6 +37,17 @@ repositories {
     mavenCentral()
 }
 
+// Ktor 1.2.3 pins Netty 4.1.37 (2019). Nothing in this project uses APIs that changed
+// inside the 4.1 line, so track the current patch release instead of the pinned one.
+configurations.all {
+    resolutionStrategy.eachDependency { details ->
+        if (details.requested.group == 'io.netty' && details.requested.name.startsWith('netty-')) {
+            details.useVersion netty_version
+            details.because 'CVEs fixed after 4.1.37; API-compatible within 4.1.x'
+        }
+    }
+}
+
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlin_version"
     implementation "org.slf4j:slf4j-simple:$slf4j_version"
@@ -46,7 +58,9 @@ dependencies {
     implementation "org.kodein.di:kodein-di-generic-jvm:$kodein_version"
     implementation "com.zaxxer:HikariCP:$hikaricp_version"
     implementation "com.h2database:h2:$h2_version"
-    implementation "org.jetbrains.exposed:exposed:$exposed_version"
+    implementation "org.jetbrains.exposed:exposed-core:$exposed_version"
+    implementation "org.jetbrains.exposed:exposed-jdbc:$exposed_version"
+    implementation "org.jetbrains.exposed:exposed-java-time:$exposed_version"
     // ktor-jackson 1.2.3 pulls Jackson 2.9, whose Kotlin module predates kotlin-reflect 1.9.
     implementation "com.fasterxml.jackson.module:jackson-module-kotlin:$jackson_version"
     implementation "com.fasterxml.jackson.core:jackson-databind:$jackson_version"
@@ -70,6 +84,9 @@ compileTestKotlin {
 }
 
 test {
+    // Each class boots the app on port 8080 against the in-memory database; a fresh JVM per
+    // class gives every suite an empty schema and avoids cross-suite fixture interference.
+    forkEvery = 1
     testLogging {
         events "passed", "skipped", "failed"
     }

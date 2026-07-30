@@ -4,6 +4,7 @@ import io.realworld.app.domain.Article
 import io.realworld.app.domain.User
 import org.jetbrains.exposed.dao.LongIdTable
 import org.jetbrains.exposed.sql.Column
+import org.jetbrains.exposed.sql.Expression
 import org.jetbrains.exposed.sql.JoinType
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.SchemaUtils
@@ -42,18 +43,20 @@ class ArticleRepository {
     }
 
     // Correlated subquery instead of GROUP BY so articles with zero favorites still come back.
-    private val favoritesCount = wrapAsExpression<Int>(
+    // Built inside the transaction: Exposed needs one in context to render an expression.
+    private fun favoritesCount() = wrapAsExpression<Int>(
         Favorites.slice(Favorites.user.count())
             .select { Favorites.article eq Articles.id }
     )
 
     fun findPopular(limit: Int, offset: Int): List<Article> = transaction {
+        val favoritesCount = favoritesCount()
         Articles.join(Users, JoinType.INNER, additionalConstraint = { Articles.author eq Users.id })
             .slice(Articles.columns + Users.columns + favoritesCount)
             .selectAll()
             .orderBy(favoritesCount, SortOrder.DESC)
             .limit(limit, offset)
-            .map { toDomain(it) }
+            .map { toDomain(it, favoritesCount) }
     }
 
     fun count(): Int = transaction { Articles.selectAll().count() }
@@ -83,7 +86,7 @@ class ArticleRepository {
         Unit
     }
 
-    private fun toDomain(row: ResultRow) = Article(
+    private fun toDomain(row: ResultRow, favoritesCount: Expression<Int>) = Article(
         slug = row[Articles.slug],
         title = row[Articles.title],
         description = row[Articles.description],

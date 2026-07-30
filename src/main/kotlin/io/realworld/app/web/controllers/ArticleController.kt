@@ -10,9 +10,19 @@ import io.realworld.app.domain.service.ArticleService
 class ArticleController(private val articleService: ArticleService) {
 
     suspend fun popularFeed(ctx: ApplicationCall) {
-        val limit = ctx.parameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_LIMIT) ?: DEFAULT_LIMIT
-        val offset = ctx.parameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        val limit = ctx.parameters["limit"].toPositiveIntOr(DEFAULT_LIMIT, "limit")
+        val offset = ctx.parameters["offset"].toPositiveIntOr(0, "offset", allowZero = true)
+        require(limit <= MAX_LIMIT) { "limit must not be greater than $MAX_LIMIT." }
         ctx.respond(articleService.findPopular(limit, offset))
+    }
+
+    private fun String?.toPositiveIntOr(default: Int, name: String, allowZero: Boolean = false): Int {
+        if (this == null) return default
+        val value = toIntOrNull()
+        require(value != null && (value > 0 || (allowZero && value == 0))) {
+            "$name must be a positive integer."
+        }
+        return value
     }
 
     fun findBy(ctx: ApplicationCall): ArticlesDTO {

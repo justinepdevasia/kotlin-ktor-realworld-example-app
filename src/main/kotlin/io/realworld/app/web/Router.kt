@@ -42,9 +42,9 @@ fun Route.profiles(profileController: ProfileController) {
 
 fun Route.articles(articleController: ArticleController, commentController: CommentController) {
     route("articles") {
-        get("feed/popular") { articleController.popularFeed(this.context) }
         authenticate {
             get("feed") { articleController.feed(this.context) }
+            get("feed/popular") { articleController.popularFeed(this.context) }
             route("{slug}") {
                 route("comments") {
                     post { commentController.add(this.context) }

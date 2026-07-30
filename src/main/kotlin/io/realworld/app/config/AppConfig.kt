@@ -7,9 +7,7 @@ import io.ktor.auth.jwt.jwt
 import io.ktor.features.CallLogging
 import io.ktor.features.ContentNegotiation
 import io.ktor.features.StatusPages
-import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
-import io.ktor.response.respond
 import io.ktor.routing.Routing
 import io.ktor.routing.route
 import io.ktor.server.cio.CIO
@@ -21,7 +19,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
 import io.ktor.util.KtorExperimentalAPI
 import io.realworld.app.utils.JwtProvider
-import io.realworld.app.web.ErrorResponse
+import io.realworld.app.web.ErrorExceptionMapping
 import io.realworld.app.web.articles
 import io.realworld.app.web.controllers.ArticleController
 import io.realworld.app.web.controllers.CommentController
@@ -81,12 +79,7 @@ fun Application.mainModule() {
         }
     }
     install(StatusPages) {
-        exception(Exception::class.java) {
-            val errorResponse = ErrorResponse(mapOf("error" to listOf("detail", this.toString())))
-            context.respond(
-                HttpStatusCode.InternalServerError, errorResponse
-            )
-        }
+        ErrorExceptionMapping.setup(this)
     }
 
     install(Routing) {

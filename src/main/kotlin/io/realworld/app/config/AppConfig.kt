@@ -11,6 +11,7 @@ import io.ktor.http.HttpStatusCode
 import io.ktor.jackson.jackson
 import io.ktor.response.respond
 import io.ktor.routing.Routing
+import io.ktor.routing.route
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.ApplicationEngine
 import io.ktor.server.engine.ApplicationEngineFactory
@@ -89,9 +90,11 @@ fun Application.mainModule() {
     }
 
     install(Routing) {
-        users(userController)
-        profiles(profileController)
-        articles(articleController, commentController)
-        tags(tagController)
+        route("api") {
+            users(userController)
+            profiles(profileController)
+            articles(articleController, commentController)
+            tags(tagController)
+        }
     }
 }

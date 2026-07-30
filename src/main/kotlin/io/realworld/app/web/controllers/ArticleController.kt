@@ -2,11 +2,18 @@ package io.realworld.app.web.controllers
 
 import io.ktor.application.ApplicationCall
 import io.ktor.request.receive
+import io.ktor.response.respond
 import io.realworld.app.domain.ArticleDTO
 import io.realworld.app.domain.ArticlesDTO
+import io.realworld.app.domain.service.ArticleService
 
-class ArticleController {
-//class ArticleController(private val articleService: ArticleService) {
+class ArticleController(private val articleService: ArticleService) {
+
+    suspend fun popularFeed(ctx: ApplicationCall) {
+        val limit = ctx.parameters["limit"]?.toIntOrNull()?.coerceIn(1, MAX_LIMIT) ?: DEFAULT_LIMIT
+        val offset = ctx.parameters["offset"]?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        ctx.respond(articleService.findPopular(limit, offset))
+    }
 
     fun findBy(ctx: ApplicationCall): ArticlesDTO {
         val tag = ctx.parameters["tag"]
@@ -73,5 +80,10 @@ class ArticleController {
 //                ctx.json(ArticleDTO(this))
 //            }
         return ArticleDTO(null)
+    }
+
+    companion object {
+        private const val DEFAULT_LIMIT = 20
+        private const val MAX_LIMIT = 100
     }
 }
